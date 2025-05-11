@@ -1,0 +1,52 @@
+# Speaker Note
+**Gideon**
+
+# Speaker Note
+**Gideon**
+The most important thing in our trading app is, of course, the stock data. Because of the costs associated with granular data, we decided to use synthetic data. Although it would have been possible to use less granular data for free, using this level of granularity was a more technically interesting challenge. 
+
+We originally generated the data in-memory, but we realized that, once we scaled up to multiple stocks over long-year periods, it would actually crash the app, so we ended up pre-generating the historical data and then generating the new data on the server and pushing updates to clients over WebSockets. This was another challenge, because we needed to process the data into candlesticks on the server in order to minimize latency. 
+
+# Speaker Note
+**Jackson**
+This is the equation we used to generate the stock price data. S sub t represents the price at a time t, and S sub zero represents the time at the start. Basically, the equation combines a long-term drift with short term volatility. The mu represents the average return which is the rate of the drift, and the sigma represents the volatility.
+
+# Speaker Note
+**Gideon**
+Next, we're going to give you a walkthrough of our code. We unfortunately don't have time to walkthrough each component and do a product demo, so we'll do some excerpts.
+
+
+# Speaker Note
+**Gideon**
+To choose the tech stack for this project, we wanted to find tools that were popular in the professional world, but also modern and easy to use. We settled on React with TypeScript for our web framework. React is by far the most popular framework for modern web apps, and TypeScript adds static type checking to JavaScript, which makes it way easier to use. You get fewer runtime errors and better IDE autocomplete, as well as better LLM integration.
+
+For the styling, we used Tailwind, which is a CSS library, along with components from the shadcn/ui library, which is maintained by Vercel and used by their agentic design tool V0. To handle authentication and database hosting, we used Supabase, which provides a hosted Postgres instance with a lot of features for easy authentication. 
+
+We also used the lightweight-charts library, which is the free version of the charting tool that powers TradingView. Their enterprise SDKs are used by a lot of major companies, like brokerages and crypto exchanges, so it's a really powerful tool.
+
+# Speaker Note
+***Jackson**
+One of the main goals of this project was obviously to learn, and one of the things we wanted to learn about was how to effectively use LLMs in coding. We tried, essentially, three categories of LLMs: chatbots, which are the standard web-based LLMs, hosted agents like Repl.it and Lovable, and then self-hosted agents like Claude Code and Cline.
+
+Each of these have distinct uses – the chatbots were really helpful for self-contained stuff like the data generation, but they struggle with bigger codebases. The hosted agents, especially Loveable, are really fine-tuned for making web apps, so they turned out to be really useful as we were starting out. One big takeaway was that you need to be able to identify the limitations of these tools and know when to step in. For example, basically every tool we tried struggled to integrate the lightweight-trading SDK, even when we provided documentation, so we eventually intervened manually and wrote that code.
+
+This project definitely gave us a lot of insight into prompt engineering and how to combine LLMs effectively into our development workflows.
+
+# Speaker Note
+**Jackson**
+This is our folder structure. Components are grouped by feature in the components directory. The contexts folder contains React context providers for global state management. Custom hooks are in the hooks directory for reusable logic. The pages folder houses main route components. Services contains data management code, and utility functions are in the utils folder. This structure encourages separation of concerns and makes the codebase easier to navigate and maintain.
+
+# Speaker Note
+**Gideon**
+Here we can see how routing is implemented in the application. The BrowserRouter provides routing functionality, with the AuthProvider wrapping everything to make authentication available throughout the app. The RequireAuth component is a protected route wrapper that ensures only authenticated users can access the main application routes. Each major section of the app has its own route, with the StockDetail route taking a dynamic ticker parameter to display specific stock information. This setup creates a user-friendly navigation structure while ensuring proper access control.
+
+# Speaker Note
+**Jackson**
+The trading functionality is implemented through the executeOrder method in the StockContext, which handles validating and executing the order. It performs several validation checks, such as ensuring the user is logged in, the stock exists, and the user has sufficient shares for selling or funds for buying. Next, it creates an order record, which updates both the UI and the backend. Then it updates the user's portfolio. This is one example of how we organized our code. We centralized all of the logic in one place rather than spreading it throughout the UI, which makes it easier to understand and less error-prone.
+
+# Speaker Note
+**Gideon**
+This is an example of a component styled using TailwindCSS. One of the things I wanted to improve on from my last web project was the design -- my last project used Bootstrap and a lot of tables, so it was cohesive but not that interesting or responsive. With the help of LLMs and more learning about frontend, we were able to make this one responsive, and implement things like dark mode. The LLMs in particular made it way easier to translate our high-level design ideas into code, freeing up time to work on actual features.
+
+This example shows how a control section adapts to different screen sizes. On small screens (mobile), the controls stack vertically with the flex-col class, while on medium screens and larger they align horizontally with sm:flex-row. The width of the controls also changes from full-width on mobile to auto-width on larger screens.
+

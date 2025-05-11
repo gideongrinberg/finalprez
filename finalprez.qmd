@@ -1,0 +1,289 @@
+---
+title: Market Maestro
+subtitle: Adv. Projects in CS Final Project
+format: 
+  clean-revealjs
+html-math-method:
+  method: mathjax
+  url: "https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"
+author:
+  - name: Gideon Grinberg and Jackson Wang
+date: Spring 2025
+---
+
+## Project Overview
+
+- **Project**: A web-based stock trading app
+
+- **Goal**: Gain practical experience with fullstack development and understand
+  key components of financial technology systems.
+
+- **Limitations**: Minute real-world data are expensive, so we are limited to 
+  mocked data.
+
+- **Tech Stack**
+  - **Frontend**: React with Next.js and shadcn/ui
+  - **Authentication**: Supabase
+  - **Database**: PostgresQL
+  - **Data Pipeline**: Python
+
+
+::: {.notes}
+**Gideon**
+:::
+
+## Technical Overview
+
+### Stock Data
+
+- We use five years of tick data with a uniform tick size of five seconds
+  - Impractical to store this much data in memory
+- Data is generated into the database using Python
+- Loaded and processed on backend on-demand, updated via WebSockets
+
+::: {.notes}
+**Gideon**
+The most important thing in our trading app is, of course, the stock data. Because of the costs associated with granular data, we decided to use synthetic data. Although it would have been possible to use less granular data for free, using this level of granularity was a more technically interesting challenge. 
+
+We originally generated the data in-memory, but we realized that, once we scaled up to multiple stocks over long-year periods, it would actually crash the app, so we ended up pre-generating the historical data and then generating the new data on the server and pushing updates to clients over WebSockets. This was another challenge, because we needed to process the data into candlesticks on the server in order to minimize latency. 
+:::
+
+## Technical Overview
+
+### Data Generation
+
+- Data generated using geometric Brownian motion, standard for simulating stocks
+
+$$
+S_t = S_0 \exp\left( \left( \mu - \frac{1}{2} \sigma^2 \right)t + \sigma W_t \right)
+$$
+
+- $\mu$: Drift (expected return)
+- $\sigma$: Volatility of the asset
+- $W_t$: Standard Brownian motion
+
+::: {.notes}
+**Jackson**
+This is the equation we used to generate the stock price data. S sub t represents the price at a time t, and S sub zero represents the time at the start. Basically, the equation combines a long-term drift with short term volatility. The mu represents the average return which is the rate of the drift, and the sigma represents the volatility.
+:::
+
+## Technical Overview
+
+### Data Generation (Code Walkthrough)
+
+```{.python code-line-numbers="2-6|7-10|12-16|18-20"}
+def simulate_gbm_ticks(...) -> pd.DataFrame:
+    if seed is not None:
+        np.random.seed(seed)
+
+    total_ticks = ticks_per_day * trading_days_per_year * years
+    dt = 1 / (trading_days_per_year * ticks_per_day)  # Time step in years
+
+    # Generate Brownian increments
+    dW = np.random.normal(loc=0.0, scale=np.sqrt(dt), size=total_ticks)
+    W = np.cumsum(dW)
+
+    # GBM formula
+    t = np.linspace(0, years, total_ticks)
+    drift = (mu - 0.5 * sigma**2) * t
+    diffusion = sigma * W
+    S = S0 * np.exp(drift + diffusion)
+
+    # Create timestamps (approximate, no weekends/holidays)
+    timestamps = pd.date_range(start='2020-01-01', periods=total_ticks, freq='S')
+    df = pd.DataFrame({'timestamp': timestamps, 'price': S})
+
+    return df
+```
+
+:::{.notes}
+**Jackson**
+This is the code we used to generate data based on geometric Brownian motion. Here at the top, we calculate the number of ticks in a year, and then we use that to figure out delta T, the time between ticks. That allows us to scale the GBM equation from years to ticks.
+
+[advance]
+
+The next thing we do is take a series of normally-distributed random values and sum them, which gives us the random noise for each tick. This is what's called the Brownian motion
+
+[advance]
+
+And then we create the actual price data. The first line here creates the time grid, which is just the list of ticks. Then, we calculate the drift and diffusion for each step and plug them into the GBM formula to generate the price data.
+
+One thing you'll notice is that we're not using any loops here even though t, W, and S are all lists. We're using numpy, which allows us to do scalar multiplication without a loop. It makes the code easier to understand, and it's faster than looping, which turned out to be important because we were generating so much data. 
+
+[advance]
+
+Anyway, once we have the list of prices, we use Pandas to generate timestamps for each tick, and then we save it to a Parquet file. Parquet is basically a compressed version of CSV, and we needed to use it because the final data for all the stocks took up over a gigabyte as a CSV.
+:::
+
+# Codebase Walkthrough
+
+::: {.notes}
+**Gideon**
+Next, we're going to give you a walkthrough of our code. We unfortunately don't have time to walkthrough each component and do a product demo, so we'll do some excerpts.
+
+:::
+
+## Tech Stack
+
+- Frontend: React with TypeScript
+- Styling: Tailwind CSS with shadcn/ui components
+- Routing: React Router with protected routes
+- State Management: React Context API
+- Backend Integration: Supabase for authentication and data storage
+- Charts: lightweight-charts for interactive stock visualizations
+
+::: {.notes}
+**Gideon**
+To choose the tech stack for this project, we wanted to find tools that were popular in the professional world, but also modern and easy to use. We settled on React with TypeScript for our web framework. React is by far the most popular framework for modern web apps, and TypeScript adds static type checking to JavaScript, which makes it way easier to use. You get fewer runtime errors and better IDE autocomplete, as well as better LLM integration.
+
+For the styling, we used Tailwind, which is a CSS library, along with components from the shadcn/ui library, which is maintained by Vercel and used by their agentic design tool V0. To handle authentication and database hosting, we used Supabase, which provides a hosted Postgres instance with a lot of features for easy authentication. 
+
+We also used the lightweight-charts library, which is the free version of the charting tool that powers TradingView. Their enterprise SDKs are used by a lot of major companies, like brokerages and crypto exchanges, so it's a really powerful tool.
+:::
+
+## LLM Usage
+### The Key Takeaways
+
+- **Chatbots** (e.g., ChatGPT, Claude):  
+  Great for self-contained tasks like data generation
+
+- **Hosted agents** (e.g., Replit Ghostwriter, Lovable):  
+  Effective for building full-stack apps and bootstrapping projects
+
+- **Self-hosted agents** (e.g., Claude Code, Cline):  
+  Promising, but limited by setup complexity and context constraints
+
+- Learned more about strengths and weaknesses of LLMs, how to use them effectively.
+
+::: {.notes}
+***Jackson**
+One of the main goals of this project was obviously to learn, and one of the things we wanted to learn about was how to effectively use LLMs in coding. We tried, essentially, three categories of LLMs: chatbots, which are the standard web-based LLMs, hosted agents like Repl.it and Lovable, and then self-hosted agents like Claude Code and Cline.
+
+Each of these have distinct uses – the chatbots were really helpful for self-contained stuff like the data generation, but they struggle with bigger codebases. The hosted agents, especially Loveable, are really fine-tuned for making web apps, so they turned out to be really useful as we were starting out. One big takeaway was that you need to be able to identify the limitations of these tools and know when to step in. For example, basically every tool we tried struggled to integrate the lightweight-trading SDK, even when we provided documentation, so we eventually intervened manually and wrote that code.
+
+This project definitely gave us a lot of insight into prompt engineering and how to combine LLMs effectively into our development workflows.
+:::
+ 
+
+## Codebase Structure
+```
+src/
+├── components/     # UI components by feature
+├── contexts/       # React context providers
+├── hooks/          # Custom React hooks
+├── pages/          # Route components
+├── services/       # API and data services
+└── utils/          # Utility functions
+```
+
+::: {.notes}
+**Jackson**
+This is our folder structure. Components are grouped by feature in the components directory. The contexts folder contains React context providers for global state management. Custom hooks are in the hooks directory for reusable logic. The pages folder houses main route components. Services contains data management code, and utility functions are in the utils folder. This structure encourages separation of concerns and makes the codebase easier to navigate and maintain.
+:::
+
+## Routing Implementation
+
+```tsx
+// App.tsx - Main routing configuration
+<BrowserRouter>
+  <AuthProvider>
+    <Routes>
+      <Route path="/auth" element={<Auth />} />
+      <Route element={<RequireAuth />}>
+        <Route path="/" element={<AppLayout />}>
+          <Route index element={<Dashboard />} />
+          <Route path="markets" element={<Markets />} />
+          <Route path="portfolio" element={<Portfolio />} />
+          <Route path="watchlist" element={<Watchlist />} />
+          <Route path="trading" element={<Trading />} />
+          <Route path="stocks/:ticker" element={<StockDetail />} />
+        </Route>
+      </Route>
+      <Route path="*" element={<NotFound />} />
+    </Routes>
+  </AuthProvider>
+</BrowserRouter>
+```
+
+::: {.notes}
+**Gideon**
+Here we can see how routing is implemented in the application. The BrowserRouter provides routing functionality, with the AuthProvider wrapping everything to make authentication available throughout the app. The RequireAuth component is a protected route wrapper that ensures only authenticated users can access the main application routes. Each major section of the app has its own route, with the StockDetail route taking a dynamic ticker parameter to display specific stock information. This setup creates a user-friendly navigation structure while ensuring proper access control.
+:::
+
+## Trading Implementation
+
+```tsx
+// Excerpt from StockContext.tsx - Order execution
+const executeOrder = async (ticker: string, shares: number, type: 'buy' | 'sell'): Promise<boolean> => {
+  // Validation checks: user logged in, stock exists
+  
+  const totalAmount = stock.price * shares;
+  
+  // Check if selling more than owned
+  if (type === 'sell' && (!holding || holding.shares < shares)) {
+    toast.error("You don't own enough shares to sell");
+    return false;
+  }
+  
+  // Check if enough cash for buying
+  if (type === 'buy' && portfolio.balance < totalAmount) {
+    toast.error("Insufficient funds to complete this purchase");
+    return false;
+  }
+  
+  // Create and process the order
+  // Update portfolio holdings and balance
+  // Save to database
+  
+  toast.success(`${type === 'buy' ? 'Bought' : 'Sold'} ${shares} shares of ${ticker} at $${stock.price}`);
+  return true;
+};
+```
+
+::: {.notes}
+**Jackson**
+The trading functionality is implemented through the executeOrder method in the StockContext, which handles validating and executing the order. It performs several validation checks, such as ensuring the user is logged in, the stock exists, and the user has sufficient shares for selling or funds for buying. Next, it creates an order record, which updates both the UI and the backend. Then it updates the user's portfolio. This is one example of how we organized our code. We centralized all of the logic in one place rather than spreading it throughout the UI, which makes it easier to understand and less error-prone.
+:::
+
+## Responsive Design with Tailwind
+
+```tsx
+// Example of responsive design using Tailwind CSS
+<div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 mb-2">
+  <div className="flex flex-wrap justify-start gap-2">
+    {/* Timeframe selector */}
+  </div>
+  <div className="flex gap-2 w-full sm:w-auto">
+    {/* Resolution and chart type selectors */}
+  </div>
+</div>
+
+// Theme awareness for charts
+const chartOptions = useMemo(() => {
+  const isDarkTheme = theme === 'dark';
+  
+  return {
+    layout: {
+      background: { type: ColorType.Solid, color: 'transparent' },
+      textColor: isDarkTheme ? '#d1d5db' : '#606060',
+    },
+    // Other theme-aware options
+  };
+}, [theme]);
+```
+
+::: {.notes}
+**Gideon**
+This is an example of a component styled using TailwindCSS. One of the things I wanted to improve on from my last web project was the design -- my last project used Bootstrap and a lot of tables, so it was cohesive but not that interesting or responsive. With the help of LLMs and more learning about frontend, we were able to make this one responsive, and implement things like dark mode. The LLMs in particular made it way easier to translate our high-level design ideas into code, freeing up time to work on actual features.
+
+This example shows how a control section adapts to different screen sizes. On small screens (mobile), the controls stack vertically with the flex-col class, while on medium screens and larger they align horizontally with sm:flex-row. The width of the controls also changes from full-width on mobile to auto-width on larger screens.
+:::
+
+# Project Demo
+::: {.notes}
+**Jackson**
+
+That concludes the presentation portion, and now we'll move on to our project demo.
+:::
+
+
